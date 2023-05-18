@@ -1,7 +1,7 @@
 def query(api_key, query):
     import openai
     #    openai.api_key = api_key  # should get this from env automatically
-    print(f"ai.query: query={query}")
+    #print(f"ai.query: query={query}")
     # TODO actually use the chat completion API properly
     response = openai.ChatCompletion.create(
         model="gpt-4",

@@ -40,7 +40,7 @@ def ensure_table_exists(conn):
 
 def fetch_history(session_id):
     session_id = str(session_id)
-    print(f"fetching history for session_id: {session_id}")
+    # print(f"fetching history for session_id: {session_id}")
     conn = connect()
     ensure_table_exists(conn)
     c = conn.cursor()
@@ -79,14 +79,14 @@ def retrieve_all(uuids):
     def wrap(s):
         return f"'{str(s)}'"
     uuid_text = ", ".join(map(wrap, uuids))
-    print(f"uuid_text: {uuid_text}")
+    # print(f"uuid_text: {uuid_text}")
     query_text = f"""SELECT uuid
                           , text
                      FROM sentences
                      WHERE uuid IN ({uuid_text})"""
     results = c.execute(query_text)
-    #print(f"retrieve_all results: {results}")
+    # print(f"retrieve_all results: {results}")
     result = dict(results)
-    #print(f"retrieve_all result: {result}")
+    # print(f"retrieve_all result: {result}")
     conn.close()
     return result
