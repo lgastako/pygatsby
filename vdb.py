@@ -13,9 +13,15 @@ def connect_to_index():
 
 def get_top_k(k, embedding):
     index = connect_to_index()
-    return index.query(vector=embedding,
-                       top_k=k,
-                       data_source=namespace)
+    results = index.query(vector=embedding,
+                          top_k=k,
+                          namespace=namespace)
+    #print(f"raw results: {results}")
+    matches = results["matches"]
+    #print(f"matches: {matches}")
+    unpacked = list(map(lambda x: x["id"], matches))
+    #print(f"unpacked: {unpacked}")
+    return unpacked
 
 def insert_vector(id, vector):
     data = (str(id), vector)

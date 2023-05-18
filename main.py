@@ -4,8 +4,11 @@ import os
 
 from uuid import uuid4
 
+import ai
 import tdb
 from embeddings import embed
+
+from langchain.prompts import PromptTemplate, load_prompt
 
 # TODO 
 #nltk.download('punkt')
@@ -29,8 +32,31 @@ def format_history_with_restrictions(max_length, pairs):
         pairs = pairs[1:]  # TODO is this right or do we want -1?
     return result
 
+def top_k_to_context_with_restrictions(max_length, top_k):
+    result = "<history not available>"
+    for n in range(len(top_k)):
+        contextified = top_k_to_context(top_k)
+        if len(contextified) <= max_length:
+            result = contextified
+            break
+        top_k = top_k[1:]  # TODO is this right or do we want -1?
+    return result
+
+def top_k_to_context(top_k):
+    return "\n\n".join(top_k)
+
 def is_empty(xs):
     return xs is None or len(xs) == 0
+
+def top_k_data_to_sentences(top_k_ids, top_k_data):
+    return list(map(lambda id: top_k_data[id], top_k_ids))
+
+def fill_prompt(query, history, context, character_name):
+    # TODO use ChatPromptTemplate
+    # template = PromptTemplate.from_template("tell me a joke about {subject}")
+    template = load_prompt("prompts/gatsby.yaml")
+    return str(template.format_prompt(query=query, history=history, context=context, character_name=character_name))
+
 
 class CLI:
     @staticmethod
@@ -76,22 +102,23 @@ class CLI:
             embedding = embed(query)
             print(f"embedding size: {len(embedding)}")
             #print(f"embedding: {embedding}")
-            top_k_ids = vdb.get_top_k(k, embedding)["matches"]
+            top_k_ids = vdb.get_top_k(k, embedding)
             print(f"got top k ids: {top_k_ids}")
             if is_empty(top_k_ids):
                 # TODO remove this and handle the empty case
                 raise Exception("top k: No results found.")
             fetched_history = tdb.fetch_history(session_id)
             print(f"got history: {fetched_history}")
-            top_k_data = dict(tdb.retrieve_all(top_k_ids))
+            top_k_data = tdb.retrieve_all(top_k_ids)
             print(f"got top k data: {top_k_data}")
             history = format_history_with_restrictions(1500, fetched_history)
             print(f"history: {history}")
-            context = top_k_to_context_with_restrictions(1500, top_k_data)
+            top_k_sentences = top_k_data_to_sentences(top_k_ids, top_k_data)
+            context = top_k_to_context_with_restrictions(1500, top_k_sentences)
             print(f"context: {context}")
             prompt = fill_prompt(query, history, context, character_name)
             print(f"prompt: {prompt}")
-            result <- ai_query(oai_api_key, prompt)
+            result = ai.query(oai_api_key, prompt)
             print(f"result: {result}")
             tdb.add_history(session_id, query, result)
             print(f"{character_name}: {result}")
