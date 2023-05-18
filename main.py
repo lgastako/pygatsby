@@ -1,17 +1,18 @@
-print("pygatsby loading...")
-import fire
-import nltk
 import os
 
 from uuid import uuid4
+from langchain.prompts import load_prompt
+
+import fire
+import nltk
+
+from embeddings import embed
 
 import ai
 import tdb
-from embeddings import embed
 
-from langchain.prompts import PromptTemplate, load_prompt
 
-# TODO 
+# TODO ...
 #nltk.download('punkt')
 #print("Loading english tokenizer")
 tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
@@ -61,7 +62,38 @@ def top_k_data_to_sentences(top_k_ids, top_k_data):
 template = load_prompt("prompts/gatsby.yaml")
 
 def fill_prompt(query, history, context, character_name):
-    return str(template.format_prompt(query=query, history=history, context=context, character_name=character_name))
+    return str(template.format_prompt(query=query,
+                                      history=history,
+                                      context=context,
+                                      character_name=character_name))
+
+def run_talk_loop(oai_api_key, session_id, character_name):
+    import vdb
+    while True:
+        print("> ", end="")
+        query = input()
+        k = 10
+        embedding = embed(query)
+        #print(f"embedding size: {len(embedding)}")
+        #print(f"embedding: {embedding}")
+        top_k_ids = vdb.get_top_k(k, embedding)
+        #print(f"got top k ids: {top_k_ids}")
+        assert not is_empty(top_k_ids)
+        fetched_history = tdb.fetch_history(session_id)
+        #print(f"got history: {fetched_history}")
+        top_k_data = tdb.retrieve_all(top_k_ids)
+        #print(f"got top k data: {top_k_data}")
+        history = format_history_with_restrictions(1500, fetched_history)
+        #print(f"history: {history}")
+        top_k_sentences = top_k_data_to_sentences(top_k_ids, top_k_data)
+        context = top_k_to_context_with_restrictions(1500, top_k_sentences)
+        #print(f"context: {context}")
+        prompt = fill_prompt(query, history, context, character_name)
+        #print(f"prompt: {prompt}")
+        result = ai.query(oai_api_key, prompt)
+        #print(f"result: {result}")
+        tdb.add_history(session_id, query, result)
+        print(f"{character_name}: {result}")
 
 
 class CLI:
@@ -80,14 +112,13 @@ class CLI:
         for n, sentence in enumerate(snippets):
             n = n + 1
             print(f"Processing sentence #{n}")
-            id = uuid4()
+            id_ = uuid4()
             embedding = embed(sentence)
             print(f"embedding size: {len(embedding)}")
             # print(f"embedding: {embedding}")
-            tdb.insert(id, sentence)
+            tdb.insert(id_, sentence)
             # TODO batch
-            metadata=None
-            vdb.insert_vector(id, embedding)
+            vdb.insert_vector(id_, embedding)
             print(f"Inserted sentence: {sentence}")
 
     @staticmethod
@@ -101,33 +132,7 @@ class CLI:
         vdb.init(pc_api_key)
         #print("Pinecone initialized.")
         session_id = uuid4()
-        while True:
-            print("> ", end="")
-            query = input()
-            k = 10
-            embedding = embed(query)
-            #print(f"embedding size: {len(embedding)}")
-            #print(f"embedding: {embedding}")
-            top_k_ids = vdb.get_top_k(k, embedding)
-            #print(f"got top k ids: {top_k_ids}")
-            if is_empty(top_k_ids):
-                # TODO remove this and handle the empty case
-                raise Exception("top k: No results found.")
-            fetched_history = tdb.fetch_history(session_id)
-            #print(f"got history: {fetched_history}")
-            top_k_data = tdb.retrieve_all(top_k_ids)
-            #print(f"got top k data: {top_k_data}")
-            history = format_history_with_restrictions(1500, fetched_history)
-            #print(f"history: {history}")
-            top_k_sentences = top_k_data_to_sentences(top_k_ids, top_k_data)
-            context = top_k_to_context_with_restrictions(1500, top_k_sentences)
-            #print(f"context: {context}")
-            prompt = fill_prompt(query, history, context, character_name)
-            #print(f"prompt: {prompt}")
-            result = ai.query(oai_api_key, prompt)
-            #print(f"result: {result}")
-            tdb.add_history(session_id, query, result)
-            print(f"{character_name}: {result}")
+        run_talk_loop(oai_api_key, session_id, character_name)
 
 def main():
     fire.Fire(CLI)
