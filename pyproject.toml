@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "pygatsby"
+version = "0.1.0"
+description = ""
+authors = ["John Evans <lgastako@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+langchain = "^0.0.172"
+pinecone-client = "^2.2.1"
+fire = "^0.5.0"
+sentence-transformers = "^2.2.2"
+nltk = "^3.8.1"
+
+
+[tool.poetry.group.dev.dependencies]
+ipdb = "^0.13.13"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
